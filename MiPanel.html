@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Evan's Domain Panel</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--primary:#3b82f6;--muted:#64748b;--bg:#f6f9fc;--card:#fff;--border:#e6eef8;--text:#102a43}
+    *{box-sizing:border-box}
+    body{font-family:'Inter',system-ui,Arial;margin:0;background:var(--bg);color:var(--text);font-size:14px;font-weight:400}
+    .navbar{backdrop-filter:blur(6px);background:linear-gradient(180deg,rgba(255,255,255,0.95),rgba(255,255,255,0.9));border-bottom:1px solid var(--border)}
+    .brand{font-weight:400;color:var(--primary)}
+    .container-main{max-width:1200px;margin:92px auto 48px;padding:0 16px}
+    .card{border:1px solid var(--border);border-radius:12px;background:var(--card)}
+    .card-compact{padding:16px}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-bottom:20px}
+    .stat{padding:18px;border-radius:10px;display:flex;align-items:center;gap:12px}
+    .stat .icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:rgba(59,130,246,0.12);color:var(--primary);font-size:20px}
+    .stat h3{margin:0;font-size:18px;font-weight:400;text-align: center}
+    .stat p{margin:0;color:var(--muted);font-size:12px}
+    .controls-bar{display:flex;gap:12px;align-items:center;flex-wrap:nowrap;margin-bottom:18px}
+    .controls-bar .search-wrap{flex:1 1 420px;min-width:220px}
+    .controls-bar .control{flex:0 0 auto}
+    .controls-bar .form-control,.controls-bar .form-select,.controls-bar .btn{height:40px;min-width:120px;font-size:13px;border-radius:8px}
+    .controls-bar .input-group-text{display:flex;align-items:center;height:40px;border-radius:8px}
+    @media (max-width:768px){
+      .controls-bar{flex-direction:column;align-items:stretch}
+      .controls-bar .search-wrap,.controls-bar .control{width:100%!important}
+      .controls-bar .form-control,.controls-bar .form-select,.controls-bar .btn{width:100%}
+    }
+    .table{font-size:13px}
+    .table thead th{background:#fbfdff;border-bottom:1px solid var(--border);font-weight:400;color:var(--muted)}
+    .domain-status{display:inline-block;padding:4px 8px;border-radius:999px;font-weight:400;font-size:11px}
+    .s-active{background:#ecfdf5;color:#065f46}
+    .s-expiring{background:#fffbeb;color:#92400e}
+    .s-expired{background:#fff1f2;color:#7f1d1d}
+    .modal-content{border-radius:12px;border:1px solid var(--border)}
+    .form-label{font-weight:400;font-size:13px}
+    .input-inline{display:flex;gap:8px}
+    .input-inline .form-control{flex:1}
+    .small-muted{font-size:11px;color:var(--muted)}
+    footer{margin-top:2rem;text-align:center;font-size:12px;color:var(--muted)}
+    footer a{color:var(--muted);text-decoration:none}
+    nav[aria-label="域名分页"],
+    nav[aria-label="域名分页"] .page-link {font-size: 0.8rem;}
+  </style>
+</head>
+
+<body>
+<nav class="navbar navbar-expand-lg">
+  <div class="container-fluid px-3">
+    <a class="navbar-brand brand" href="#"><i class="bi bi-globe2"></i> Evan's Domain Panel</a>
+    <div class="ms-auto d-flex align-items-center gap-2">
+      <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDomainModal"><i class="bi bi-plus-lg"></i> 添加域名</button>
+    </div>
+  </div>
+</nav>
+
+<main class="container-main">
+  <div class="stats-grid">
+    <div class="card stat card-compact"><div class="icon"><i class="bi bi-hdd-network"></i></div><div><h3 id="statTotal">0</h3><p>域名总数</p></div></div>
+    <div class="card stat card-compact"><div class="icon"><i class="bi bi-exclamation-circle"></i></div><div><h3 id="statExpiring">0</h3><p>到期域名（30天）</p></div></div>
+    <div class="card stat card-compact"><div class="icon"><i class="bi bi-cash-stack"></i></div><div><h3 id="statCost">¥0</h3><p>总投入成本</p></div></div>
+    <div class="card stat card-compact"><div class="icon"><i class="bi bi-tag"></i></div><div><h3 id="statIntent">¥0</h3><p>总意向售价</p></div></div>
+    <div class="card stat card-compact"><div class="icon"><i class="bi bi-graph-up"></i></div><div><h3 id="statActual">¥0</h3><p>实际总收益</p></div></div>
+  </div>
+
+  <div class="controls-bar">
+    <div class="search-wrap">
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input id="searchInput" type="text" class="form-control" placeholder="搜索域名或注册商...">
+      </div>
+    </div>
+    <div class="control">
+      <select id="filterStatus" class="form-select">
+        <option value="all">全部状态</option>
+        <option value="active">正常</option>
+        <option value="expiring">即将到期</option>
+        <option value="expired">已过期</option>
+      </select>
+    </div>
+    <div class="control">
+      <select id="pageSizeSelect" class="form-select" title="每页显示条数">
+        <option value="10">10 条/页</option>
+        <option value="20">20 条/页</option>
+        <option value="50">50 条/页</option>
+        <option value="100">100 条/页</option>
+      </select>
+    </div>
+    <div class="control">
+      <button class="btn btn-outline-secondary" id="exportBtn"><i class="bi bi-download"></i> 导出CSV</button>
+    </div>
+    <div class="control">
+      <button class="btn btn-outline-secondary" id="importBtn"><i class="bi bi-upload"></i> 导入</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table align-middle mb-0">
+          <thead><tr><th>域名</th><th>注册商</th><th>注册价</th><th>续费价</th><th>意向售价</th><th>实际售价</th><th>到期时间</th><th>剩余天数</th><th>状态</th><th>操作</th></tr></thead>
+          <tbody id="domainTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <nav aria-label="域名分页">
+    <ul class="pagination justify-content-center mt-3" id="pagination"></ul>
+  </nav>
+</main>
+
+<footer>
+  Copyright © 2025 <a href="https://evanmi.top" target="_blank" rel="noopener">EvanMi.Top </a> All Rights Reserved.
+  <p style="margin-top: 12px;">
+<a title="Evan's Mi" href="https://evanmi.top/"><img width="18" height="18" src="https://www.evanmi.top/favicon.ico" atl="Evan's Mi"/></a>
+</footer>
+
+<div class="modal fade" id="addDomainModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="modalTitle">添加新域名</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <form id="domainForm"><input type="hidden" name="editIndex" value="-1">
+          <div class="row gy-3">
+            <div class="col-md-6"><label class="form-label">域名（含后缀）</label><input name="domainFull" class="form-control" placeholder="example.com" required></div>
+            <div class="col-md-6"><label class="form-label">注册商</label><input name="registrar" class="form-control" list="registrarsList" placeholder="可直接填写"></div>
+            <datalist id="registrarsList">
+              <option>阿里云</option><option>腾讯云</option><option>百度云</option><option>华为云</option>
+              <option>西部数码</option><option>西部数码国际</option><option>新网</option><option>万网</option><option>Namecheap</option>
+              <option>GoDaddy</option><option>Name.com</option><option>Google Domains</option>
+              <option>Cloudflare</option><option>Dynadot</option><option>Porkbun</option><option>Spaceship</option>
+            </datalist>
+            <div class="col-md-6"><label class="form-label">注册时间</label><input type="date" name="registerDate" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">到期时间</label><input type="date" name="expireDate" class="form-control" required></div>
+            <div class="col-md-6"><label class="form-label">注册价格 (¥)</label><input type="number" step="0.01" min="0" name="registerPrice" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">续费价格 (¥)</label><input type="number" step="0.01" min="0" name="renewPrice" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">意向售价 (¥)</label><input type="number" step="0.01" min="0" name="targetPrice" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">实际售价 (¥)</label><input type="number" step="0.01" min="0" name="actualPrice" class="form-control"></div>
+            <div class="col-12"><label class="form-label">备注</label><textarea name="notes" rows="3" class="form-control"></textarea></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button class="btn btn-primary" onclick="saveDomain()">保存</button></div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* ========== 本地存储 key ========== */
+const STORAGE_KEY = 'domainPanel_domains';
+
+/* ========== 分页相关 ========== */
+let currentPage = 1;
+let pageSize = 10;
+
+/* ========== 数据读写 ========== */
+function loadDomains() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+function saveDomains() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(domains));
+}
+
+/* ========== 全局变量：从本地加载 ========== */
+let domains = loadDomains();
+
+/* ========== 首次初始化：如果本地为空，写入默认数据 ========== */
+if (!domains.length) {
+  domains = [
+    { domainFull: 'evan.xin',   registrar: 'Spaceship', registerDate: '2023-05-20', expireDate: '2026-05-20', registerPrice: 100, renewPrice: 100, targetPrice: 500,  actualPrice: 500, notes: '这是我的博客' },
+    { domainFull: 'evan.plus',  registrar: 'Spaceship', registerDate: '2023-05-20', expireDate: '2026-05-20', registerPrice: 100, renewPrice: 100, targetPrice: 500,  actualPrice: 500, notes: '' },
+    { domainFull: 'evan.top',   registrar: 'Spaceship', registerDate: '2023-05-20', expireDate: '2026-05-20', registerPrice: 100, renewPrice: 100, targetPrice: 500, actualPrice: 500, notes: '' },
+    { domainFull: 'evanmi.top', registrar: 'Spaceship', registerDate: '2023-05-20', expireDate: '2026-05-20', registerPrice: 100, renewPrice: 100, targetPrice: 500, actualPrice: 500, notes: '' },
+    { domainFull: 'shebao.cx',  registrar: 'Spaceship', registerDate: '2023-05-20', expireDate: '2026-05-20', registerPrice: 100, renewPrice: 100, targetPrice: 500, actualPrice: 500, notes: '' }
+  ];
+  saveDomains();
+}
+
+/* ========== 工具函数 ========== */
+function daysRemaining(d) {
+  const today = new Date(), exp = new Date(d + 'T23:59:59');
+  return Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+}
+
+/* ========== 渲染表格（含分页） ========== */
+function renderTable(list = domains) {
+  const q = document.getElementById('searchInput').value.trim().toLowerCase();
+  const status = document.getElementById('filterStatus').value;
+  let filtered = list.filter(d => {
+    const full = (d.domainFull || '').toLowerCase();
+    const reg = (d.registrar || '').toLowerCase();
+    if (q && !(full.includes(q) || reg.includes(q))) return false;
+    if (status === 'all') return true;
+    const days = daysRemaining(d.expireDate);
+    if (status === 'active')   return days > 30;
+    if (status === 'expiring') return days > 0 && days <= 30;
+    if (status === 'expired')  return days <= 0;
+    return true;
+  });
+
+  const total = filtered.length;
+  const totalPages = Math.ceil(total / pageSize);
+  if (currentPage > totalPages && totalPages !== 0) currentPage = totalPages;
+  const start = (currentPage - 1) * pageSize;
+  const pageData = filtered.slice(start, start + pageSize);
+
+  const tbody = document.getElementById('domainTableBody');
+  tbody.innerHTML = '';
+  pageData.forEach((d, idx) => {
+    const days = daysRemaining(d.expireDate);
+    let statusText = '正常', cls = 's-active';
+    if (days <= 0)        { statusText = '已过期'; cls = 's-expired'; }
+    else if (days <= 30)  { statusText = '即将到期'; cls = 's-expiring'; }
+    const globalIndex = start + idx;
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td><strong>${d.domainFull}</strong><div class='small-muted'>${d.notes || ''}</div></td>
+        <td>${d.registrar || '-'}</td>
+        <td>¥${(d.registerPrice || 0).toLocaleString()}</td>
+        <td>¥${(d.renewPrice || 0).toLocaleString()}</td>
+        <td>${d.targetPrice ? '¥' + Number(d.targetPrice).toLocaleString() : '-'}</td>
+        <td>${d.actualPrice ? '¥' + Number(d.actualPrice).toLocaleString() : '-'}</td>
+        <td>${d.expireDate}</td>
+        <td>${days}</td>
+        <td><span class='domain-status ${cls}'>${statusText}</span></td>
+        <td>
+          <div class='d-flex gap-1'>
+            <button class='btn btn-sm btn-outline-primary' onclick='openEdit(${globalIndex})'><i class='bi bi-pencil'></i></button>
+            <button class='btn btn-sm btn-outline-danger' onclick='removeDomain(${globalIndex})'><i class='bi bi-trash'></i></button>
+          </div>
+        </td>
+      </tr>
+    `);
+  });
+
+  renderPagination(totalPages);
+}
+
+/* ========== 分页按钮 ========== */
+function renderPagination(totalPages) {
+  const pagination = document.getElementById('pagination');
+  pagination.innerHTML = '';
+  if (totalPages <= 1) return;
+
+  pagination.insertAdjacentHTML('beforeend', `
+    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="changePage(${currentPage - 1})">上一页</a>
+    </li>
+  `);
+  for (let i = 1; i <= totalPages; i++) {
+    pagination.insertAdjacentHTML('beforeend', `
+      <li class="page-item ${i === currentPage ? 'active' : ''}">
+        <a class="page-link" href="#" onclick="changePage(${i})">${i}</a>
+      </li>
+    `);
+  }
+  pagination.insertAdjacentHTML('beforeend', `
+    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+      <a class="page-link" href="#" onclick="changePage(${currentPage + 1})">下一页</a>
+    </li>
+  `);
+}
+function changePage(page) {
+  if (page < 1) return;
+  currentPage = page;
+  renderTable();
+}
+
+/* ========== 统计更新 ========== */
+function updateStats() {
+  document.getElementById('statTotal').textContent = domains.length;
+  document.getElementById('statExpiring').textContent = domains.filter(d => {
+    const days = daysRemaining(d.expireDate);
+    return days > 0 && days <= 30;
+  }).length;
+  document.getElementById('statCost').textContent = '¥' + domains.reduce((s, d) => s + (Number(d.registerPrice) || 0), 0).toLocaleString();
+  document.getElementById('statIntent').textContent = '¥' + domains.reduce((s, d) => s + (Number(d.targetPrice) || 0), 0).toLocaleString();
+  document.getElementById('statActual').textContent = '¥' + domains.reduce((s, d) => s + (Number(d.actualPrice) || 0), 0).toLocaleString();
+}
+
+/* ========== 保存/编辑/删除 ========== */
+function saveDomain() {
+  const fd = new FormData(document.getElementById('domainForm'));
+  const idx = Number(fd.get('editIndex'));
+  const item = {
+    domainFull: (fd.get('domainFull') || '').trim(),
+    registrar: fd.get('registrar') || '',
+    registerDate: fd.get('registerDate') || '',
+    expireDate: fd.get('expireDate') || '',
+    registerPrice: Number(fd.get('registerPrice')) || 0,
+    renewPrice: Number(fd.get('renewPrice')) || 0,
+    targetPrice: fd.get('targetPrice') ? Number(fd.get('targetPrice')) : 0,
+    actualPrice: fd.get('actualPrice') ? Number(fd.get('actualPrice')) : 0,
+    notes: fd.get('notes') || ''
+  };
+  if (!item.domainFull) { alert('请填写完整域名（含后缀）'); return; }
+  if (idx >= 0) { domains[idx] = item; } else { domains.push(item); }
+  bootstrap.Modal.getInstance(document.getElementById('addDomainModal')).hide();
+  saveDomains();
+  currentPage = 1;
+  renderTable(); updateStats();
+  document.getElementById('domainForm').reset();
+}
+function openEdit(i) {
+  const d = domains[i];
+  const f = document.getElementById('domainForm');
+  f.reset(); f.editIndex.value = i;
+  f.domainFull.value = d.domainFull;
+  f.registrar.value = d.registrar;
+  f.registerDate.value = d.registerDate;
+  f.expireDate.value = d.expireDate;
+  f.registerPrice.value = d.registerPrice;
+  f.renewPrice.value = d.renewPrice;
+  f.targetPrice.value = d.targetPrice;
+  f.actualPrice.value = d.actualPrice;
+  f.notes.value = d.notes;
+  new bootstrap.Modal(document.getElementById('addDomainModal')).show();
+}
+function removeDomain(i) {
+  if (confirm('确定删除该域名？')) {
+    domains.splice(i, 1);
+    saveDomains();
+    if (domains.length <= (currentPage - 1) * pageSize && currentPage > 1) currentPage--;
+    renderTable(); updateStats();
+  }
+}
+
+/* ========== 搜索/过滤/分页大小 ========== */
+document.getElementById('searchInput').addEventListener('input', () => { currentPage = 1; renderTable(); });
+document.getElementById('filterStatus').addEventListener('change', () => { currentPage = 1; renderTable(); });
+document.getElementById('pageSizeSelect').addEventListener('change', e => {
+  pageSize = Number(e.target.value);
+  currentPage = 1;
+  renderTable();
+});
+
+/* ========== 导出 CSV ========== */
+document.getElementById('exportBtn').addEventListener('click', () => {
+  if (!domains.length) { alert('没有数据可导出'); return; }
+  const keys = ['domainFull', 'registrar', 'registerPrice', 'renewPrice', 'targetPrice', 'actualPrice', 'registerDate', 'expireDate', 'notes'];
+  const lines = [keys.join(',')];
+  domains.forEach(d => {
+    lines.push(keys.map(k => `"${(d[k] || '').toString().replace(/"/g, '""')}"`).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'domains_export.csv';
+  a.click();
+});
+
+/* ========== 导入 CSV ========== */
+document.getElementById('importBtn').addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.csv';
+  input.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = evt => {
+      const csv = evt.target.result;
+      const lines = csv.split('\n');
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const importedDomains = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+        const domain = {};
+        headers.forEach((h, index) => { domain[h] = values[index] || ''; });
+        importedDomains.push(domain);
+      }
+      domains = [...domains, ...importedDomains];
+      saveDomains();
+      currentPage = 1;
+      renderTable(); updateStats();
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+});
+
+/* ========== 首次加载 ========== */
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelector('input[name=registerDate]').value = new Date().toISOString().split('T')[0];
+  renderTable(); updateStats();
+});
+</script>
+</body>
+</html>
